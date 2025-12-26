@@ -4,9 +4,7 @@
 
 **AI-powered dynamic art generator for e-ink displays**
 
-<a href="https://buymeacoffee.com/integral.llc">
-  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=integral.llc&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy Me A Coffee" />
-</a>
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/integral.llc)
 
 Generate stunning, gallery-worthy artwork optimized for e-ink displays using DALL-E 3 and GPT-4. Features daily artist-inspired styles, inspirational quotes, and automatic color palette optimization.
 
