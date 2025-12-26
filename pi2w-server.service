@@ -1,0 +1,15 @@
+[Unit]
+Description=Pi2W Content Server
+After=network.target
+
+[Service]
+Type=simple
+User=dev
+WorkingDirectory=/home/dev/pi2w-server
+ExecStart=/home/dev/pi2w-server/.venv/bin/python server.py
+Restart=always
+RestartSec=10
+Environment=PATH=/home/dev/pi2w-server/.venv/bin:/usr/bin
+
+[Install]
+WantedBy=multi-user.target
