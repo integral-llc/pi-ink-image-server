@@ -5,7 +5,7 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import HTMLResponse, Response
 
 from .adapters.openai_adapter import OpenAIAdapter
 from .config import DisplayConfig, FontConfig, QuoteConfig
@@ -138,5 +138,97 @@ def create_app() -> FastAPI:
                 "description": artist.description,
             }
         return response
+    
+    @app.get("/tv", response_class=HTMLResponse)
+    async def tv_display(
+        width: int = 1920,
+        height: int = 1080,
+        colors: int = 7,
+        interval: int = 30,
+    ):
+        """Self-refreshing TV display page for Chromecast/Fire TV.
+        
+        Args:
+            width: Display width (default: 1920 for 1080p TV)
+            height: Display height (default: 1080)
+            colors: Number of colors (default: 7 for full color TV)
+            interval: Refresh interval in minutes (default: 30)
+        """
+        interval_ms = interval * 60 * 1000
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pi2W Art Display</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        html, body {{ width: 100%; height: 100%; background: #000; overflow: hidden; }}
+        #art {{ 
+            width: 100vw; 
+            height: 100vh; 
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }}
+        #art.loaded {{ opacity: 1; }}
+        #info {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.5);
+            font-family: system-ui, sans-serif;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }}
+    </style>
+</head>
+<body>
+    <img id="art" alt="AI Generated Art">
+    <div id="info"></div>
+    <script>
+        const width = {width};
+        const height = {height};
+        const colors = {colors};
+        const intervalMs = {interval_ms};
+        
+        async function loadArt() {{
+            const img = document.getElementById('art');
+            const info = document.getElementById('info');
+            img.classList.remove('loaded');
+            
+            const basePath = window.location.pathname.replace(/\/tv$/, '');
+            const url = `${{basePath}}/art?width=${{width}}&height=${{height}}&colors=${{colors}}&t=${{Date.now()}}`;
+            
+            try {{
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to load');
+                
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                
+                const artist = response.headers.get('X-Artist') || '';
+                const timeOfDay = response.headers.get('X-Time-Of-Day') || '';
+                
+                img.onload = () => {{
+                    img.classList.add('loaded');
+                    URL.revokeObjectURL(img.src);
+                }};
+                img.src = objectUrl;
+                
+                const now = new Date();
+                const next = new Date(now.getTime() + intervalMs);
+                info.textContent = artist ? `${{artist}} · Next: ${{next.toLocaleTimeString()}}` : '';
+            }} catch (e) {{
+                info.textContent = 'Loading failed, retrying...';
+                setTimeout(loadArt, 10000);
+            }}
+        }}
+        
+        loadArt();
+        setInterval(loadArt, intervalMs);
+    </script>
+</body>
+</html>"""
     
     return app
