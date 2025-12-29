@@ -1,0 +1,37 @@
+# Pi2W Lovelace Dashboard Card
+# Add this card to your dashboard
+
+# Option 1: Simple picture-entity card (auto-refreshing)
+type: picture-entity
+entity: camera.pi2w_art
+show_state: false
+show_name: false
+camera_view: auto
+tap_action:
+  action: call-service
+  service: rest_command.pi2w_refresh
+
+---
+
+# Option 2: Full section with status
+type: vertical-stack
+cards:
+  - type: heading
+    heading: Pi2W Display
+
+  - type: picture-entity
+    entity: camera.pi2w_art
+    show_state: false
+    show_name: false
+    camera_view: auto
+    tap_action:
+      action: call-service
+      service: rest_command.pi2w_refresh
+
+  - type: entities
+    entities:
+      - entity: sensor.pi2w_server
+        name: Server
+      - entity: sensor.pi2w_display
+        name: Display
+    title: Status

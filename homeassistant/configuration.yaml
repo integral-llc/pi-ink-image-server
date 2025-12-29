@@ -1,0 +1,42 @@
+# Pi2W E-Ink Display - Home Assistant Configuration
+# Add these sections to your existing configuration.yaml
+
+# Generic Camera for auto-refreshing dashboard image
+camera:
+  - platform: generic
+    name: Pi2W Art
+    still_image_url: "http://PI_IP:8080/art/latest"
+    content_type: image/png
+    # Refresh every 30 seconds
+    framerate: 0.0333
+
+# REST Sensors for monitoring
+sensor:
+  # Server status
+  - platform: rest
+    name: Pi2W Server
+    resource: "http://SERVER_IP:8000/status"
+    value_template: "{{ value_json.status }}"
+    scan_interval: 60
+    json_attributes:
+      - uptime_seconds
+      - generation_count
+      - last_generation
+
+  # Pi display status
+  - platform: rest
+    name: Pi2W Display
+    resource: "http://PI_IP:8080/status"
+    value_template: "{{ value_json.status }}"
+    scan_interval: 60
+    json_attributes:
+      - quiet_hours
+      - last_refresh
+      - refresh_count
+      - latest_image
+
+# REST Command to trigger manual refresh
+rest_command:
+  pi2w_refresh:
+    url: "http://PI_IP:8080/refresh"
+    method: POST

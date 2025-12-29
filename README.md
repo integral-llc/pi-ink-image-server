@@ -17,9 +17,11 @@ Generate stunning, gallery-worthy artwork optimized for e-ink displays using DAL
 ## Features
 
 - **AI Art Generation** — DALL-E 3 creates vibrant, high-contrast artwork optimized for e-ink
-- **365 Artists of the Day** — Each day features art inspired by a famous artist born on that date
+- **1095 Artists Database** — 3 artists per day rotating every 8 hours, inspired by birthdays
+- **AI Unleashed Mode** — 10% chance for mind-bending impossible art (4D geometry, synesthesia, etc.)
 - **Dynamic Quotes** — GPT-4 generated inspirational quotes overlay each image
 - **Smart Color Quantization** — Floyd-Steinberg dithering with saturation boost for vivid e-ink colors
+- **Home Assistant Integration** — Camera entity, status sensors, webhook refresh triggers
 - **Multi-Display Support** — Automatically adapts to different e-ink display sizes and color depths
 - **Time-Aware Scenes** — Generates morning, afternoon, evening, and night themed artwork
 
@@ -121,7 +123,7 @@ GET /health
 
 ## Artist of the Day
 
-Every day features artwork inspired by a famous artist born on that date:
+Every day features artwork inspired by 3 famous artists born on that date, rotating every 8 hours:
 
 - **January 28** — Jackson Pollock (Abstract Expressionism)
 - **March 6** — Michelangelo (High Renaissance)
@@ -131,7 +133,19 @@ Every day features artwork inspired by a famous artist born on that date:
 - **October 25** — Pablo Picasso (Cubism)
 - **December 5** — Walt Disney (Animation)
 
-...and 358 more artists covering every day of the year.
+...and 1088 more artists covering every day of the year (3 per day).
+
+### AI Unleashed Mode
+
+10% of generations trigger "AI Unleashed" mode — surreal, impossible concepts that push beyond human imagination:
+
+- Impossible geometry existing in 4+ dimensions
+- What music looks like to a synesthetic being
+- The dreams of a mathematical equation becoming self-aware
+- A landscape from inside a black hole where causality runs backwards
+- The shadow of a 5-dimensional object passing through 3D space
+
+Uses higher temperature (1.2) and a special system prompt for maximum creativity.
 
 ## Configuration
 
@@ -153,6 +167,30 @@ DisplayConfig(
 )
 ```
 
+## Home Assistant Integration
+
+Integrate your Pi Ink display with Home Assistant for dashboard monitoring and control.
+
+See [`homeassistant/`](homeassistant/) for ready-to-use configuration files:
+
+- **`configuration.yaml`** — Camera, sensors, and REST commands
+- **`lovelace-card.yaml`** — Dashboard card examples
+
+### Quick Setup
+
+1. Copy settings from `homeassistant/configuration.yaml` to your HA config
+2. Replace `PI_IP` with your Pi's IP (e.g., `192.168.0.189`)
+3. Replace `SERVER_IP` with your server's IP (e.g., `192.168.0.148`)
+4. Restart Home Assistant
+5. Add the Lovelace card from `homeassistant/lovelace-card.yaml`
+
+### Features
+
+- **Auto-refreshing camera** — Shows latest art on dashboard
+- **Tap to refresh** — Manual refresh trigger
+- **Status sensors** — Monitor server and display health
+- **Quiet hours aware** — Respects display sleep schedule
+
 ## Project Structure
 
 ```
@@ -167,20 +205,25 @@ pi-ink-image-server/
 │   ├── imaging/           # Quantizer & text rendering
 │   ├── services/          # Art generation pipeline
 │   └── data/
-│       └── artists.py     # 365 artists database
+│       └── artists.py     # 1095 artists database (3 per day)
 ├── pi_client/
-│   └── display_client.py  # Raspberry Pi client
+│   ├── display_client.py  # Display update client
+│   └── webhook_listener.py # HTTP server + scheduler
+├── homeassistant/
+│   ├── configuration.yaml # HA config (camera, sensors, commands)
+│   └── lovelace-card.yaml # Dashboard card examples
 └── docs/
     └── *.png              # Sample images
 ```
 
 ## How It Works
 
-1. **Prompt Generation** — GPT-4o-mini creates a vivid scene description based on time of day and today's artist
-2. **Image Generation** — DALL-E 3 generates a 1792x1024 image from the prompt
-3. **Quote Overlay** — An inspirational quote is rendered with adaptive text colors
-4. **Color Quantization** — Image is resized and dithered to the e-ink palette with saturation boost
-5. **Display Update** — Client fetches image and refreshes e-ink display (~30 seconds)
+1. **Artist Selection** — Pick one of 3 artists for today (rotating every 8 hours) or trigger AI Unleashed (10% chance)
+2. **Prompt Generation** — GPT-4o-mini creates a vivid scene description based on time of day and artist/concept
+3. **Image Generation** — DALL-E 3 generates a 1792x1024 image from the prompt
+4. **Quote Overlay** — An inspirational quote is rendered with adaptive text colors
+5. **Color Quantization** — Image is resized and dithered to the e-ink palette with saturation boost
+6. **Display Update** — Client fetches image and refreshes e-ink display (~30 seconds)
 
 ## Requirements
 
