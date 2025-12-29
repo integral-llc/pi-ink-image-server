@@ -53,6 +53,8 @@ logger = logging.getLogger(__name__)
 last_refresh = 0
 last_refresh_time: datetime | None = None
 refresh_count = 0
+skipped_empty = 0  # Skipped due to no occupancy
+skipped_quiet = 0  # Skipped during quiet hours (no occupancy)
 service_start_time = datetime.now()
 
 
@@ -77,18 +79,19 @@ async def check_occupancy() -> bool:
         return False
 
 
-def do_refresh(source: str = "unknown") -> bool:
-    """Trigger display refresh."""
+def do_refresh(source: str = "unknown", force: bool = False) -> bool:
+    """Trigger display refresh.
+
+    Args:
+        source: Label for logging
+        force: If True, skip the MIN_INTERVAL check
+    """
     global last_refresh, last_refresh_time, refresh_count
     now = time.time()
     elapsed = now - last_refresh
 
-    if elapsed < MIN_INTERVAL:
+    if not force and elapsed < MIN_INTERVAL:
         logger.info(f"[{source}] Skipped: last refresh {int(elapsed)}s ago")
-        return False
-
-    if is_quiet_hours():
-        logger.info(f"[{source}] Skipped: quiet hours")
         return False
 
     logger.info(f"[{source}] Refreshing display...")
@@ -107,22 +110,32 @@ def do_refresh(source: str = "unknown") -> bool:
 
 async def scheduler():
     """Background task for scheduled refreshes."""
+    global skipped_empty, skipped_quiet
     logger.info("Scheduler started")
 
-    # Initial refresh at startup if not quiet hours and occupied
+    # Initial refresh at startup if occupied
     await asyncio.sleep(5)
-    if not is_quiet_hours() and await check_occupancy():
+    if await check_occupancy():
         do_refresh("startup")
 
     while True:
         await asyncio.sleep(SCHEDULE_INTERVAL)
 
+        occupied = await check_occupancy()
+
         if is_quiet_hours():
-            logger.info("[scheduled] Quiet hours, skipping")
+            if occupied:
+                # Someone's there during quiet hours - still refresh!
+                logger.info("[scheduled] Quiet hours but occupied - refreshing anyway")
+                do_refresh("scheduled-quiet")
+            else:
+                skipped_quiet += 1
+                logger.info(f"[scheduled] Quiet hours & empty, skipping (total: {skipped_quiet})")
             continue
 
-        if not await check_occupancy():
-            logger.info("[scheduled] Office empty, skipping")
+        if not occupied:
+            skipped_empty += 1
+            logger.info(f"[scheduled] Office empty, skipping (total: {skipped_empty})")
             continue
 
         do_refresh("scheduled")
@@ -140,13 +153,23 @@ async def status(request):
     if image_exists:
         image_mtime = datetime.fromtimestamp(LATEST_IMAGE_PATH.stat().st_mtime).isoformat()
 
+    # Build status summary: "5 shown, 2 empty, 1 night"
+    status_parts = [f"{refresh_count} shown"]
+    if skipped_empty > 0:
+        status_parts.append(f"{skipped_empty} empty")
+    if skipped_quiet > 0:
+        status_parts.append(f"{skipped_quiet} night")
+    status_summary = ", ".join(status_parts)
+
     return JSONResponse({
-        "status": "ok",
+        "status": status_summary,
         "timestamp": datetime.now().isoformat(),
         "service_uptime_seconds": int((datetime.now() - service_start_time).total_seconds()),
         "quiet_hours": is_quiet_hours(),
         "last_refresh": last_refresh_time.isoformat() if last_refresh_time else None,
         "refresh_count": refresh_count,
+        "skipped_empty": skipped_empty,
+        "skipped_quiet": skipped_quiet,
         "latest_image": {
             "available": image_exists,
             "modified_at": image_mtime,
@@ -155,9 +178,8 @@ async def status(request):
 
 
 async def refresh_endpoint(request):
-    if is_quiet_hours():
-        return PlainTextResponse("Quiet hours")
-    elif do_refresh("webhook"):
+    """Manual refresh via webhook - always allowed (even during quiet hours)."""
+    if do_refresh("webhook"):
         return PlainTextResponse("Refresh triggered")
     else:
         return PlainTextResponse("Skipped (too soon)")

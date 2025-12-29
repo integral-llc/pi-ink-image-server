@@ -23,7 +23,7 @@ sensor:
       - generation_count
       - last_generation
 
-  # Pi display status
+  # Pi display status - shows "5 shown, 2 empty, 1 night"
   - platform: rest
     name: Pi2W Display
     resource: "http://PI_IP:8080/status"
@@ -33,6 +33,8 @@ sensor:
       - quiet_hours
       - last_refresh
       - refresh_count
+      - skipped_empty
+      - skipped_quiet
       - latest_image
 
 # REST Command to trigger manual refresh
