@@ -3,3 +3,4 @@ pillow>=10.0.0
 inky>=2.0.0
 uvicorn>=0.32.0
 starlette>=0.41.0
+numpy>=1.22.0 # not directly required, pinned by Snyk to avoid a vulnerability
