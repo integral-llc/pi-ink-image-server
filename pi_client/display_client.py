@@ -71,11 +71,16 @@ class InkyDisplay:
             self.num_colors = 7
             logger.info("Running in simulation mode")
 
-    def show(self, image: Image.Image):
-        """Display image on screen."""
+    def show(self, image: Image.Image, save_path: Path | None = None):
+        """Display image on screen and optionally save to file."""
         # Ensure correct size
         if image.size != (self.width, self.height):
             image = image.resize((self.width, self.height), Image.Resampling.LANCZOS)
+
+        # Always save latest image for serving via HTTP
+        if save_path:
+            image.save(save_path)
+            logger.info(f"Image saved to {save_path}")
 
         if self.simulate:
             # Save to file for preview
@@ -163,6 +168,12 @@ def main():
         default=0,
         help="Refresh interval in minutes (0 = one-shot)"
     )
+    parser.add_argument(
+        "--save-path",
+        type=Path,
+        default=Path(__file__).parent / "latest.png",
+        help="Path to save latest displayed image"
+    )
 
     args = parser.parse_args()
 
@@ -185,10 +196,10 @@ def main():
                     width=display.width,
                     height=display.height,
                     colors=display.num_colors,
-                    style=args.style, 
+                    style=args.style,
                     prompt=args.prompt,
                 )
-                display.show(image)
+                display.show(image, save_path=args.save_path)
 
                 if args.interval <= 0:
                     break

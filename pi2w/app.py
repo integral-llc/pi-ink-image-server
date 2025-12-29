@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 
 import io
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -13,6 +14,18 @@ from .models import TimeOfDay
 from .services.art_service import ArtService
 
 load_dotenv()
+
+
+@dataclass
+class GenerationState:
+    """Tracks the last generated art."""
+    last_image: bytes | None = None
+    last_prompt: str | None = None
+    last_quote: str | None = None
+    last_artist: str | None = None
+    last_time_of_day: str | None = None
+    last_generated_at: datetime | None = None
+    generation_count: int = 0
 
 
 def create_app() -> FastAPI:
@@ -29,6 +42,9 @@ def create_app() -> FastAPI:
     
     # Application
     app = FastAPI(title="Pi2W Content Server", version="0.2.0")
+
+    # State for tracking last generation
+    state = GenerationState()
     
     @app.get("/")
     async def root():
@@ -48,6 +64,38 @@ def create_app() -> FastAPI:
     async def health():
         """Health check endpoint."""
         return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+    @app.get("/status")
+    async def status():
+        """Detailed status including last generation info."""
+        return {
+            "status": "ok",
+            "timestamp": datetime.now().isoformat(),
+            "last_generation": {
+                "generated_at": state.last_generated_at.isoformat() if state.last_generated_at else None,
+                "prompt": state.last_prompt,
+                "quote": state.last_quote,
+                "artist": state.last_artist,
+                "time_of_day": state.last_time_of_day,
+            } if state.last_generated_at else None,
+            "generation_count": state.generation_count,
+        }
+
+    @app.get("/art/latest")
+    async def get_latest_art():
+        """Return the last generated art image."""
+        if not state.last_image:
+            raise HTTPException(status_code=404, detail="No art generated yet")
+
+        return Response(
+            content=state.last_image,
+            media_type="image/png",
+            headers={
+                "X-Generated-At": state.last_generated_at.isoformat() if state.last_generated_at else "",
+                "X-Time-Of-Day": state.last_time_of_day or "",
+                "Cache-Control": "public, max-age=60",
+            },
+        )
     
     # Valid display parameter ranges
     MIN_SIZE = 100
@@ -98,26 +146,36 @@ def create_app() -> FastAPI:
             img_bytes = io.BytesIO()
             image.save(img_bytes, format="PNG")
             img_bytes.seek(0)
-            
+            image_data = img_bytes.getvalue()
+
             import re
             def sanitize_header(s: str) -> str:
                 return re.sub(r'[^\x20-\x7E]', ' ', s[:200]).strip()
-            
+
             safe_prompt = sanitize_header(full_prompt)
             safe_quote = sanitize_header(quote)
-            
+
+            # Update state with last generation
+            state.last_image = image_data
+            state.last_prompt = full_prompt
+            state.last_quote = quote
+            state.last_artist = artist.name if artist else None
+            state.last_time_of_day = time_of_day.value
+            state.last_generated_at = datetime.now()
+            state.generation_count += 1
+
             headers = {
                 "X-Time-Of-Day": time_of_day.value,
                 "X-Prompt": safe_prompt,
                 "X-Quote": safe_quote,
             }
-            
+
             if artist:
                 headers["X-Artist"] = sanitize_header(artist.name)
                 headers["X-Artist-Style"] = sanitize_header(artist.style)
-            
+
             return Response(
-                content=img_bytes.getvalue(),
+                content=image_data,
                 media_type="image/png",
                 headers=headers,
             )
