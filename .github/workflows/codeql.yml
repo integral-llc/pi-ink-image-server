@@ -1,12 +1,12 @@
-name: "CodeQL Security Analysis"
+name: "CodeQL"
 
 on:
   push:
     branches: [main]
   pull_request:
+    # Run on ALL PRs targeting main
     branches: [main]
   schedule:
-    # Run weekly on Mondays
     - cron: "0 6 * * 1"
 
 jobs:
